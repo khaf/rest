@@ -41,6 +41,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const debugEnv = `REST_DEBUG`
@@ -51,6 +52,9 @@ const (
 )
 
 var debugLevel = debugLevelSilence
+
+var DefaultTimeout = 5 * time.Second
+var DefaultContentType = "application/x-www-form-urlencoded; charset=UTF-8"
 
 var (
 	ioReadCloserType = reflect.TypeOf((*io.ReadCloser)(nil)).Elem()
@@ -98,6 +102,8 @@ type Client struct {
 	Prefix string
 	// Jar to store cookies.
 	CookieJar *cookiejar.Jar
+	// Timeout for request
+	Timeout time.Duration
 }
 
 // DefaulClient is the default client used on top level functions like
@@ -130,6 +136,7 @@ func New(prefix string) (*Client, error) {
 	self := new(Client)
 	self.Prefix = strings.TrimRight(prefix, "/") + "/"
 	self.Header = http.Header{}
+	self.Timeout = DefaultTimeout
 
 	if self.CookieJar, err = cookiejar.New(nil); err != nil {
 		return nil, err
@@ -195,7 +202,7 @@ func (self *Client) newRequest(dst interface{}, method string, addr *url.URL, bo
 	switch method {
 	case "POST", "PUT":
 		if req.Header.Get("Content-Type") == "" {
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+			req.Header.Set("Content-Type", DefaultContentType)
 		}
 	}
 
@@ -561,6 +568,8 @@ func (self *Client) do(req *http.Request) (*http.Response, error) {
 		req.Header.Del("Content-Type")
 		req.Header.Del("Content-Length")
 	}
+
+	client.Timeout = self.Timeout
 
 	res, err := client.Do(req)
 
